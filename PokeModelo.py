@@ -9,9 +9,9 @@ IMG_SIZE = 64
 
 transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.Grayscale(num_output_channels=1),
+    transforms.Lambda(lambda img: img.convert("RGB")),  # Fuerza 3 canales (evita problemas con PNG con transparencia)
     transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
 # Dos carpetas distintas: una para entrenar y otra para probar
@@ -54,7 +54,7 @@ class ConvNet(nn.Module):
         return x
 
 
-model = ConvNet(num_classes, img_size=IMG_SIZE, in_channels=1)
+model = ConvNet(num_classes, img_size=IMG_SIZE, in_channels=3)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
