@@ -1,6 +1,6 @@
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -9,31 +9,29 @@ IMG_SIZE = 64
 
 transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
-    transforms.Lambda(lambda img: img.convert("RGB")),  # Fuerza 3 canales (evita problemas con PNG con transparencia)
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-# Dos carpetas distintas: una para entrenar y otra para probar
-train_data = datasets.ImageFolder(
-    root="PokeModelo/pokemon_dataset/pokemon_survivors",
-    transform=transform
-)
-test_data = datasets.ImageFolder(
-    root="PokeModelo/poketest",   # <-- pon aquí tu carpeta de prueba
+dataset = datasets.ImageFolder(
+    root="./pokemon_dataset/pokemon_survivors",
     transform=transform
 )
 
-# Las dos carpetas deben tener los mismos pokémon (mismos nombres de subcarpeta)
-assert train_data.class_to_idx == test_data.class_to_idx, \
-    f"Las clases no coinciden:\ntrain: {train_data.class_to_idx}\ntest: {test_data.class_to_idx}"
+num_classes = len(dataset.classes)
+print("Clases:", dataset.classes)
 
-num_classes = len(train_data.classes)
-print("Clases:", train_data.classes)
+train_size = int(0.8 * len(dataset))
+
+test_size = len(dataset) - train_size
+
+train_data, test_data = random_split(
+    dataset, [train_size, test_size],
+    generator=torch.Generator().manual_seed(42)
+)
 
 train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=64, shuffle=False)
-
 
 class ConvNet(nn.Module):
     def __init__(self, num_classes, img_size=64, in_channels=1):
@@ -59,7 +57,6 @@ model = ConvNet(num_classes, img_size=IMG_SIZE, in_channels=3)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Entrenamiento (solo con la carpeta de entrenamiento)
 epochs = 10
 for epoch in range(epochs):
     model.train()
@@ -73,7 +70,6 @@ for epoch in range(epochs):
         running_loss += loss.item()
     print(f'Epoch {epoch+1}, Loss: {running_loss/len(train_loader):.4f}')
 
-# Evaluación (con la carpeta de prueba, imágenes distintas)
 model.eval()
 correct, total = 0, 0
 with torch.no_grad():
